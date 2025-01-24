@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react';
+import packageJson from '../../../package.json';
 
 const VersionTooltip = () => {
   const [isVisible, setIsVisible] = useState(false);
+  const version = packageJson.version;
 
   return (
     <div className="relative">
@@ -12,7 +14,7 @@ const VersionTooltip = () => {
         onMouseEnter={() => setIsVisible(true)}
         onMouseLeave={() => setIsVisible(false)}
       >
-        v0.0.3.1
+        v{version}
       </span>
 
       {isVisible && (
