@@ -6,43 +6,6 @@ import Calendar from '@/components/dashboard/Calendar';
 export default function DashboardPage() {
   return (
     <div className="space-y-4">
-      {/* Search and Filters Bar */}
-      <div className="flex items-center justify-between">
-        <div className="relative w-96">
-          <input
-            type="text"
-            placeholder="Search projects, tasks..."
-            className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-100"
-          />
-          <svg
-            className="absolute left-3 top-2.5 w-5 h-5 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-        </div>
-
-        {/* Quick Filters */}
-        <div className="flex space-x-2">
-          <button className="px-4 py-2 rounded-xl bg-blue-50 text-blue-600 text-sm font-medium">
-            All Projects
-          </button>
-          <button className="px-4 py-2 rounded-xl bg-gray-50 text-gray-600 text-sm font-medium hover:bg-gray-100">
-            In Progress
-          </button>
-          <button className="px-4 py-2 rounded-xl bg-gray-50 text-gray-600 text-sm font-medium hover:bg-gray-100">
-            Planning
-          </button>
-        </div>
-      </div>
-
       {/* Metrics Overview - Full Width */}
       <DashboardMetrics />
 
