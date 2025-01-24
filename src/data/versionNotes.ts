@@ -2,22 +2,22 @@ interface VersionNote {
   version: string;
   notes: string[
   {
-    version: "0.0.3.4",
+    version: "0.0.3.5",
     notes: [
-      "• Added automatic version notes",
-      "• Version tooltip improvements",
-      "• Better update tracking"
+      "• Added version history tracking",
+      "• Improved tooltip display",
+      "• Smoother version updates"
     ]
   },];
 }
 
 export const versionNotes: VersionNote[] = [
   {
-    version: "0.0.3.3",
+    version: "0.0.3.4",
     notes: [
-      "• Added version indicator",
-      "• Auto-version from package.json",
-      "• Added version update script"
+      "• Added automatic version notes",
+      "• Version tooltip improvements",
+      "• Better update tracking"
     ]
   }
 ]; 
