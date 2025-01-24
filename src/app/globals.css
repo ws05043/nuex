@@ -3,19 +3,62 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* iOS Light Mode Colors - Updated for whiter theme */
+  --ios-background: 255, 255, 255;  /* Pure White */
+  --ios-secondary-background: 250, 250, 250;  /* Very Light Gray */
+  --ios-text: 0, 0, 0;
+  --ios-secondary-text: 60, 60, 67;
+  --ios-blue: 0, 122, 255;
+  --ios-gray: 142, 142, 147;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* iOS Dark Mode Colors */
+    --ios-background: 0, 0, 0;
+    --ios-secondary-background: 28, 28, 30;
+    --ios-text: 255, 255, 255;
+    --ios-secondary-text: 142, 142, 147;
+    --ios-blue: 10, 132, 255;
+    --ios-gray: 99, 99, 102;
   }
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: rgb(var(--ios-text));
+  background: rgb(var(--ios-background));
+}
+
+/* iOS-style card */
+.ios-card {
+  @apply bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.05)];
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* iOS-style button */
+.ios-button {
+  @apply px-4 py-2 rounded-full bg-[rgb(var(--ios-blue))] text-white 
+         font-medium transition-all active:opacity-70;
+}
+
+/* iOS-style smooth scrolling */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* iOS-style focus rings */
+*:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--ios-blue), 0.3);
+}
+
+/* iOS-style transitions */
+.transition-ios {
+  transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  transition-duration: 400ms;
+}
+
+.ios-blur {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
