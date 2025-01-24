@@ -20,6 +20,8 @@ interface EventModalProps {
   initialDate?: Date | null;
 }
 
+type CalendarView = 'month' | 'day';
+
 const THEME_COLORS = [
   { name: 'Blue', value: 'bg-blue-500' },
   { name: 'Purple', value: 'bg-purple-500' },
@@ -33,17 +35,52 @@ const THEME_COLORS = [
 
 const EventModal = ({ event, isOpen, onClose, onSave, isNew = false, initialDate }: EventModalProps) => {
   const [formData, setFormData] = useState<Partial<Event>>(() => {
-    const baseData = event || {
-      title: '',
-      date: initialDate || new Date(),
-      type: 'task',
-      project: '',
-      color: 'bg-blue-500',
-      description: ''
-    };
+    const baseDate = event?.date || initialDate || new Date();
+    // Round minutes to nearest 30
+    const roundedDate = new Date(baseDate);
+    roundedDate.setMinutes(Math.round(roundedDate.getMinutes() / 30) * 30);
     
-    return baseData;
+    return {
+      title: event?.title || '',
+      date: roundedDate,
+      type: event?.type || 'task',
+      project: event?.project || '',
+      color: event?.color || 'bg-blue-500',
+      description: event?.description || ''
+    };
   });
+
+  const formatDateForInput = (date: Date) => {
+    const d = new Date(date);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().split('T')[0];
+  };
+
+  const formatTimeForInput = (date: Date) => {
+    return date.toTimeString().slice(0, 5); // Returns HH:mm format
+  };
+
+  const formatTimeForSelect = (date: Date) => {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
+  const generateTimeOptions = () => {
+    const options = [];
+    for (let hour = 0; hour < 24; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const value = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        const label = new Date(2000, 0, 1, hour, minute).toLocaleTimeString([], {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        });
+        options.push({ value, label });
+      }
+    }
+    return options;
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -59,18 +96,6 @@ const EventModal = ({ event, isOpen, onClose, onSave, isNew = false, initialDate
   }, [isOpen, initialDate, event]);
 
   if (!isOpen) return null;
-
-  const formatDateForInput = (date: Date) => {
-    const d = new Date(date);
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().split('T')[0];
-  };
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedDate = new Date(e.target.value);
-    selectedDate.setHours(12, 0, 0, 0);
-    setFormData({ ...formData, date: selectedDate });
-  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -93,16 +118,47 @@ const EventModal = ({ event, isOpen, onClose, onSave, isNew = false, initialDate
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date
-            </label>
-            <input
-              type="date"
-              value={formData.date ? formatDateForInput(formData.date) : ''}
-              onChange={handleDateChange}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-gray-900"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date
+              </label>
+              <input
+                type="date"
+                value={formData.date ? formatDateForInput(formData.date) : ''}
+                onChange={(e) => {
+                  const newDate = new Date(formData.date || new Date());
+                  const selectedDate = new Date(e.target.value);
+                  newDate.setFullYear(selectedDate.getFullYear());
+                  newDate.setMonth(selectedDate.getMonth());
+                  newDate.setDate(selectedDate.getDate());
+                  setFormData({ ...formData, date: newDate });
+                }}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-gray-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Time
+              </label>
+              <select
+                value={formData.date ? formatTimeForSelect(formData.date) : ''}
+                onChange={(e) => {
+                  const [hours, minutes] = e.target.value.split(':').map(Number);
+                  const newDate = new Date(formData.date || new Date());
+                  newDate.setHours(hours, minutes, 0, 0);
+                  setFormData({ ...formData, date: newDate });
+                }}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-gray-900"
+              >
+                {generateTimeOptions().map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>
@@ -190,6 +246,120 @@ const EventModal = ({ event, isOpen, onClose, onSave, isNew = false, initialDate
   );
 };
 
+const isSameDay = (date1: Date, date2: Date) => {
+  return (
+    date1.getDate() === date2.getDate() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getFullYear() === date2.getFullYear()
+  );
+};
+
+interface DayViewProps {
+  date: Date;
+  events: Event[];
+  onEventClick: (event: Event) => void;
+  onTimeSlotClick: (hour: number) => void;
+}
+
+const DayView = ({ date, events, onEventClick, onTimeSlotClick }: DayViewProps) => {
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const dayEvents = events.filter(event => isSameDay(new Date(event.date), date));
+
+  // Group events by hour
+  const eventsByHour = dayEvents.reduce((acc, event) => {
+    const hour = new Date(event.date).getHours();
+    if (!acc[hour]) acc[hour] = [];
+    acc[hour].push(event);
+    return acc;
+  }, {} as Record<number, Event[]>);
+
+  const formatHour = (hour: number) => {
+    const period = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}${period}`;
+  };
+
+  return (
+    <div className="h-full overflow-y-auto custom-scrollbar">
+      <div className="relative grid grid-cols-[32px_1fr] divide-x divide-gray-100">
+        {/* Time labels */}
+        <div className="sticky top-0 z-10 bg-white">
+          {hours.map(hour => (
+            <div
+              key={hour}
+              className="h-8 text-[10px] text-gray-400 text-right pr-1 relative"
+            >
+              <span className="absolute top-[-0.5em] right-1">
+                {formatHour(hour)}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Time slots and events */}
+        <div className="relative">
+          {/* Time slot backgrounds */}
+          <div className="absolute inset-0">
+            {hours.map(hour => (
+              <div
+                key={hour}
+                className="h-8 border-b border-gray-50 hover:bg-gray-50 cursor-pointer"
+                onClick={() => onTimeSlotClick(hour)}
+              />
+            ))}
+          </div>
+
+          {/* Events */}
+          <div className="absolute inset-0">
+            {Object.entries(eventsByHour).map(([hour, hourEvents]) => {
+              return hourEvents.map((event, index) => {
+                const eventDate = new Date(event.date);
+                const top = `${(eventDate.getHours() * 60 + eventDate.getMinutes()) * (32/60)}px`;
+                const width = hourEvents.length > 1 ? `${100 / hourEvents.length}%` : '95%';
+                const left = hourEvents.length > 1 ? `${(index * 100) / hourEvents.length}%` : '2.5%';
+                
+                return (
+                  <div
+                    key={event.id}
+                    className={`absolute rounded ${event.color} text-white px-1 py-0.5 cursor-pointer hover:opacity-90 overflow-hidden group`}
+                    style={{
+                      top,
+                      left,
+                      width,
+                      height: '30px',
+                      zIndex: 10
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEventClick(event);
+                    }}
+                  >
+                    <div className="text-[10px] font-medium truncate leading-tight">
+                      {event.title}
+                    </div>
+                    <div className="text-[8px] opacity-90 truncate">
+                      {eventDate.toLocaleTimeString([], { 
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true 
+                      })}
+                    </div>
+                    {hourEvents.length > 1 && index === hourEvents.length - 1 && (
+                      <div className="absolute top-0 right-0 bg-gray-700 text-[8px] px-1 rounded-bl opacity-75">
+                        +{hourEvents.length}
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Calendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<Event[]>([]);
@@ -197,6 +367,7 @@ const Calendar = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isNewEvent, setIsNewEvent] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [view, setView] = useState<CalendarView>('month');
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -252,12 +423,6 @@ const Calendar = () => {
       default:
         return 'bg-gray-500';
     }
-  };
-
-  const isSameDay = (date1: Date, date2: Date) => {
-    return date1.getDate() === date2.getDate() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getFullYear() === date2.getFullYear();
   };
 
   const renderCalendar = () => {
@@ -322,6 +487,33 @@ const Calendar = () => {
     return days;
   };
 
+  const formatDateForInput = (date: Date) => {
+    const d = new Date(date);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().split('T')[0];
+  };
+
+  const modalProps = {
+    event: selectedEvent,
+    isOpen: isModalOpen,
+    onClose: () => {
+      setIsModalOpen(false);
+      setSelectedEvent(null);
+      setSelectedDate(null);
+    },
+    onSave: (eventData: Omit<Event, 'id'>) => {
+      if (isNewEvent) {
+        handleAddEvent(eventData);
+      } else {
+        handleUpdateEvent(eventData);
+      }
+      setIsModalOpen(false);
+      setSelectedDate(null);
+    },
+    isNew: isNewEvent,
+    initialDate: selectedDate
+  };
+
   return (
     <>
       <style jsx global>{`
@@ -346,10 +538,6 @@ const Calendar = () => {
           scrollbar-width: thin;
           scrollbar-color: #E5E7EB transparent;
         }
-        
-        .custom-scrollbar:hover::-webkit-scrollbar-thumb {
-          background-color: #D1D5DB;
-        }
       `}</style>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
@@ -357,58 +545,96 @@ const Calendar = () => {
           <h2 className="text-xl font-medium text-gray-900">
             {months[currentDate.getMonth()]} {currentDate.getFullYear()}
           </h2>
-          <div className="flex space-x-2">
-            <button 
-              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
-              className="p-2 hover:bg-gray-50 rounded-xl"
-            >
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <button 
-              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
-              className="p-2 hover:bg-gray-50 rounded-xl"
-            >
-              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
+          <div className="flex items-center space-x-4">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setView('month')}
+                className={`px-3 py-1 rounded-md text-sm ${
+                  view === 'month'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Month
+              </button>
+              <button
+                onClick={() => setView('day')}
+                className={`px-3 py-1 rounded-md text-sm ${
+                  view === 'day'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Day
+              </button>
+            </div>
+            <div className="flex space-x-2">
+              <button 
+                onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
+                className="p-2 hover:bg-gray-50 rounded-xl"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setCurrentDate(new Date())}
+                className="px-3 py-1 text-sm text-blue-600 hover:text-blue-700"
+              >
+                Today
+              </button>
+              <button 
+                onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
+                className="p-2 hover:bg-gray-50 rounded-xl"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-px">
-          {days.map(day => (
-            <div key={day} className="text-center text-sm text-gray-500 py-2">
-              {day}
+        <div className="h-[600px]">
+          {view === 'month' ? (
+            <div className="h-full">
+              <div className="grid grid-cols-7 gap-px">
+                {days.map(day => (
+                  <div key={day} className="text-center text-xs text-gray-500 py-2">
+                    {day}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-px h-[calc(100%-32px)]">
+                {renderCalendar()}
+              </div>
             </div>
-          ))}
-          {renderCalendar()}
+          ) : (
+            <DayView
+              date={currentDate}
+              events={events}
+              onEventClick={(event) => {
+                setSelectedEvent(event);
+                setSelectedDate(new Date(event.date));
+                setIsNewEvent(false);
+                setIsModalOpen(true);
+              }}
+              onTimeSlotClick={(hour) => {
+                const newDate = new Date(currentDate);
+                newDate.setHours(hour, 0, 0, 0);
+                setSelectedDate(newDate);
+                setSelectedEvent(null);
+                setIsNewEvent(true);
+                setIsModalOpen(true);
+              }}
+            />
+          )}
         </div>
       </div>
 
-      <EventModal
-        event={selectedEvent}
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setSelectedEvent(null);
-          setSelectedDate(null);
-        }}
-        onSave={(eventData) => {
-          if (isNewEvent) {
-            handleAddEvent(eventData);
-          } else {
-            handleUpdateEvent(eventData);
-          }
-          setIsModalOpen(false);
-          setSelectedDate(null);
-        }}
-        isNew={isNewEvent}
-        initialDate={selectedDate}
-      />
+      <EventModal {...modalProps} />
     </>
   );
 };
 
-export default Calendar; 
+export default Calendar;
