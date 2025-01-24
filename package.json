@@ -1,12 +1,13 @@
 {
   "name": "nuex",
-  "version": "0.1.0",
+  "version": "0.0.3.3",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "version": "node scripts/update-version.js"
   },
   "dependencies": {
     "@next/font": "^14.2.15",
