@@ -2,6 +2,14 @@ interface VersionNote {
   version: string;
   notes: string[
   {
+    version: "0.0.3.6",
+    notes: [
+      "• Added Quick Tasks component",
+      "• iOS-style task checkboxes",
+      "• Smooth task completion animations"
+    ]
+  },
+  {
     version: "0.0.3.5",
     notes: [
       "• Added version history tracking",
